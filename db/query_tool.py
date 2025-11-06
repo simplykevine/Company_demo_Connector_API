@@ -41,80 +41,29 @@ def query_company_db(sql: str) -> list[dict]:
 #                 rows = []
 #     return rows
 
-import logging
-import re
-from psycopg2 import ProgrammingError
-from db.connection import get_connection
-logger = logging.getLogger(__name__)
-def resolve_table_schema(table_name: str, conn) -> str | None:
-    with conn.cursor() as cur:
-        cur.execute("""
-            SELECT table_schema
-            FROM information_schema.tables
-            WHERE table_name = %s
-              AND table_schema IN ('company', 'finance');
-        """, (table_name,))
-        row = cur.fetchone()
-        return row[0] if row else None
+
+
 def query_admin_db(sql: str) -> list[dict]:
-    sql_stripped = sql.strip()
-    sql_upper = sql_stripped.upper()
+    """
+    Allows an admin user to run SELECT queries
+    on both the 'company' and 'finance' schemas.
+    """
+
+    sql_upper = sql.strip().upper()
+
     if not sql_upper.startswith("SELECT"):
         raise ValueError("Only SELECT statements are allowed.")
+
+    lower_sql = sql.lower()
+    if not ("company." in lower_sql or "finance." in lower_sql):
+        raise ValueError("Admins may only query 'company' or 'finance' schemas.")
+        
     with get_connection() as conn:
         with conn.cursor() as cur:
-            sql_lower = sql_stripped.lower()
-            tables = re.findall(r"(?:from|join)\s+([a-zA-Z_][a-zA-Z0-9_]*)", sql_lower)
-            for table in tables:
-                if "." not in table:
-                    schema = resolve_table_schema(table, conn)
-                    if schema:
-                        sql_stripped = re.sub(
-                            rf"\b{table}\b", f"{schema}.{table}", sql_stripped, flags=re.IGNORECASE
-                        )
-                        logger.info(f"[ADMIN QUERY] Auto-resolved {table} -> {schema}.{table}")
-                    else:
-                        raise ValueError(
-                            f"Table '{table}' not found in 'company' or 'finance' schemas."
-                        )
-            cur.execute("SET search_path TO company, finance;")
-            logger.info(f"[ADMIN QUERY] Executing SQL: {sql_stripped}")
-            cur.execute(sql_stripped)
-            try:
-                columns = [desc[0] for desc in cur.description]
-                rows = [dict(zip(columns, row)) for row in cur.fetchall()]
-            except ProgrammingError:
-                rows = []
+            cur.execute(sql)
+            columns = [desc[0] for desc in cur.description]
+            rows = [dict(zip(columns, row)) for row in cur.fetchall()]
     return rows
-
-
-
-
-
-
-
-
-# def query_admin_db(sql: str) -> list[dict]:
-#     """
-#     Allows an admin user to run SELECT queries
-#     on both the 'company' and 'finance' schemas.
-#     """
-
-#     sql_upper = sql.strip().upper()
-
-#     if not sql_upper.startswith("SELECT"):
-#         raise ValueError("Only SELECT statements are allowed.")
-
-#     lower_sql = sql.lower()
-#     if not ("company." in lower_sql or "finance." in lower_sql):
-#         raise ValueError("Admins may only query 'company' or 'finance' schemas.")
-        
-#     with get_connection() as conn:
-#         with conn.cursor() as cur:
-#             cur.execute(sql)
-#             columns = [desc[0] for desc in cur.description]
-#             rows = [dict(zip(columns, row)) for row in cur.fetchall()]
-#     return rows
 
 
 
