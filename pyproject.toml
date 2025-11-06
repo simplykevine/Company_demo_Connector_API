@@ -1,0 +1,12 @@
+name = "company-mcp"
+version = "1.0.0"
+description = "MCP connector for querying the 'company' schema (PostgreSQL)."
+requires-python = ">=3.10"
+dependencies = [
+    "fastmcp>=0.3.0",
+    "psycopg2-binary>=2.9.9",
+    "python-dotenv>=1.0.1"
+]
+
+
+run-mcp = "main:main"

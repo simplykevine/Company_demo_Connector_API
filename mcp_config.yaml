@@ -1,0 +1,42 @@
+version: 1
+name: company_mcp
+description: >
+  FastMCP connector exposing the 'company' schema in Supabase (PostgreSQL)
+  for secure, read-only access via the company_user role.
+
+resources:
+  - name: postgres
+    type: sql
+    engine: postgresql
+    connection:
+      host: ${SUPABASE_DB_HOST}
+      port: ${SUPABASE_DB_PORT}
+      database: ${SUPABASE_DB_NAME}
+      user: ${SUPABASE_DB_USER}
+      password: ${SUPABASE_DB_PASSWORD}
+      sslmode: ${SUPABASE_SSLMODE}
+    schemas:
+      - company
+
+permissions:
+  - role: company_user
+    description: >
+      Read-only user with access limited to the 'company' schema.
+    schemas:
+      - company
+    access: read
+
+  - role: admin_user
+    description: >
+      Administrative role with full privileges for testing and setup.
+    schemas:
+      - company
+      - finance
+    access: full
+
+tools:
+  - name: query_company_db
+    description: Run read-only SQL SELECT queries on the 'company' schema.
+    entrypoint: db.query_tool:query_company_db
+    permissions:
+      - company_user
